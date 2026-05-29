@@ -1,0 +1,38 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP", "B", "S"]
+ignore = ["S101", "S106", "B008"]
+exclude = ["migrations", ".git", "__pycache__", "staticfiles"]
+
+[tool.ruff.per-file-ignores]
+"*/settings/*.py" = ["F403", "F405"]
+"*/tests/*.py" = ["S"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+exclude = '''/(migrations|staticfiles|\.git)/'''
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+strict_optional = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.development"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "manage.py",
+    "scripts/*",
+    "staticfiles/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80

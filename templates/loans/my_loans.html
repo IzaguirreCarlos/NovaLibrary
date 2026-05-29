@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Mis Préstamos — Lexora Library{% endblock %}
+{% block page_title %}Mis Préstamos{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  {% with active=active_loans|length overdue=overdue_loans|length %}
+  <div class="glass rounded-xl p-5">
+    <p class="text-xs text-gray-400 mb-1">Activos</p>
+    <p class="text-2xl font-bold text-white">{{ active }}</p>
+  </div>
+  <div class="glass rounded-xl p-5">
+    <p class="text-xs text-gray-400 mb-1">Vencidos</p>
+    <p class="text-2xl font-bold {% if overdue %}text-red-400{% else %}text-white{% endif %}">{{ overdue }}</p>
+  </div>
+  <div class="glass rounded-xl p-5">
+    <p class="text-xs text-gray-400 mb-1">Total historial</p>
+    <p class="text-2xl font-bold text-white">{{ loans|length }}</p>
+  </div>
+  <a href="{% url 'books:list' %}" class="glass rounded-xl p-5 flex items-center justify-center gap-3 hover:border-primary-500/50 border border-transparent transition-colors">
+    <i data-lucide="plus" class="w-6 h-6 text-primary-400"></i>
+    <span class="text-sm font-medium text-primary-400">Nuevo préstamo</span>
+  </a>
+  {% endwith %}
+</div>
+
+<!-- Overdue alert -->
+{% if overdue_loans %}
+<div class="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-6 flex items-start gap-3">
+  <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5"></i>
+  <div>
+    <p class="text-red-300 font-semibold text-sm">Tienes {{ overdue_loans|length }} préstamo(s) vencido(s)</p>
+    <p class="text-red-400/70 text-xs mt-1">Devuelve los libros lo antes posible para evitar multas adicionales.</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Loans table -->
+{% if loans %}
+<div class="glass rounded-2xl overflow-hidden">
+  <div class="p-5 border-b border-surface-border flex items-center justify-between">
+    <h2 class="font-semibold text-white">Historial de préstamos</h2>
+    <div class="flex gap-2">
+      <span class="text-xs text-gray-500">{{ loans|length }} registro(s)</span>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-surface-border">
+          <th class="text-left px-5 py-3 text-xs text-gray-500 font-medium uppercase tracking-wider">Libro</th>
+          <th class="text-left px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wider">Préstamo</th>
+          <th class="text-left px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wider">Vencimiento</th>
+          <th class="text-left px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wider">Estado</th>
+          <th class="text-left px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wider">Multa</th>
+          <th class="text-left px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wider">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-surface-border">
+        {% for loan in loans %}
+        <tr class="hover:bg-surface-card/50 transition-colors">
+          <td class="px-5 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-12 bg-surface-border rounded-lg flex-shrink-0 overflow-hidden">
+                {% if loan.book.cover_image %}
+                <img src="{{ loan.book.cover_image.url }}" class="w-full h-full object-cover" alt="">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center"><i data-lucide="book" class="w-4 h-4 text-gray-500"></i></div>
+                {% endif %}
+              </div>
+              <div>
+                <a href="{% url 'books:detail' loan.book.slug %}" class="font-medium text-white hover:text-primary-300 transition-colors line-clamp-1">{{ loan.book.title }}</a>
+                <p class="text-xs text-gray-500 mt-0.5">{{ loan.book.author_names|truncatechars:40 }}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 text-gray-300">{{ loan.loan_date|date:"d/m/Y" }}</td>
+          <td class="px-4 py-4">
+            <span class="{% if loan.is_overdue %}text-red-400{% elif loan.status == 'borrowed' and loan.days_remaining <= 3 %}text-yellow-400{% else %}text-gray-300{% endif %}">
+              {{ loan.due_date|date:"d/m/Y" }}
+            </span>
+            {% if loan.status == 'borrowed' %}
+            <p class="text-xs {% if loan.is_overdue %}text-red-400{% elif loan.days_remaining <= 3 %}text-yellow-400{% else %}text-gray-500{% endif %} mt-0.5">
+              {% if loan.is_overdue %}+{{ loan.days_overdue }}d vencido{% else %}{{ loan.days_remaining }}d restantes{% endif %}
+            </p>
+            {% endif %}
+          </td>
+          <td class="px-4 py-4">
+            <span class="px-2.5 py-1 rounded-full text-xs font-medium
+              {% if loan.status == 'borrowed' and not loan.is_overdue %}bg-blue-500/20 text-blue-300
+              {% elif loan.is_overdue or loan.status == 'overdue' %}bg-red-500/20 text-red-300
+              {% elif loan.status == 'returned' %}bg-green-500/20 text-green-300
+              {% else %}bg-gray-500/20 text-gray-300{% endif %}">
+              {% if loan.is_overdue %}Vencido{% else %}{{ loan.get_status_display }}{% endif %}
+            </span>
+          </td>
+          <td class="px-4 py-4">
+            {% if loan.fine_amount > 0 %}
+            <span class="text-red-400 font-medium">${{ loan.fine_amount }}</span>
+            {% else %}
+            <span class="text-gray-500">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-4">
+            {% if loan.status == 'borrowed' %}
+            <div class="flex gap-2">
+              {% if loan.renewal_count < 2 %}
+              <form method="post" action="{% url 'loans:renew' loan.pk %}">
+                {% csrf_token %}
+                <button class="text-xs px-3 py-1.5 bg-primary-600/20 hover:bg-primary-600/40 text-primary-300 rounded-lg transition-colors">Renovar</button>
+              </form>
+              {% endif %}
+              <form method="post" action="{% url 'loans:return' loan.pk %}">
+                {% csrf_token %}
+                <button class="text-xs px-3 py-1.5 bg-green-500/20 hover:bg-green-500/40 text-green-300 rounded-lg transition-colors">Devolver</button>
+              </form>
+            </div>
+            {% else %}
+            <span class="text-gray-600 text-xs">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center py-20 glass rounded-2xl">
+  <i data-lucide="book-open" class="w-16 h-16 text-gray-600 mx-auto mb-4"></i>
+  <h3 class="text-xl font-semibold text-white mb-2">Sin préstamos</h3>
+  <p class="text-gray-400 mb-6">Todavía no has solicitado ningún préstamo.</p>
+  <a href="{% url 'books:list' %}" class="bg-primary-600 hover:bg-primary-500 text-white px-6 py-3 rounded-xl font-medium transition-all inline-flex items-center gap-2">
+    <i data-lucide="search" class="w-4 h-4"></i> Explorar catálogo
+  </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — Lexora Library{% endblock %}
+{% block page_title %}Panel de Control{% endblock %}
+
+{% block content %}
+<!-- Stats grid -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="glass rounded-xl p-5 card-hover">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm text-gray-400">Total Libros</p>
+      <div class="w-9 h-9 bg-primary-500/20 rounded-xl flex items-center justify-center">
+        <i data-lucide="library" class="w-5 h-5 text-primary-400"></i>
+      </div>
+    </div>
+    <p class="text-3xl font-bold text-white">{{ total_books }}</p>
+    <p class="text-xs text-gray-500 mt-1">
+      <span class="text-red-400">{{ books_out_of_stock }}</span> sin stock
+    </p>
+  </div>
+
+  <div class="glass rounded-xl p-5 card-hover">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm text-gray-400">Usuarios</p>
+      <div class="w-9 h-9 bg-green-500/20 rounded-xl flex items-center justify-center">
+        <i data-lucide="users" class="w-5 h-5 text-green-400"></i>
+      </div>
+    </div>
+    <p class="text-3xl font-bold text-white">{{ total_users }}</p>
+    <p class="text-xs text-gray-500 mt-1">miembros activos</p>
+  </div>
+
+  <div class="glass rounded-xl p-5 card-hover">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm text-gray-400">Préstamos activos</p>
+      <div class="w-9 h-9 bg-blue-500/20 rounded-xl flex items-center justify-center">
+        <i data-lucide="book-marked" class="w-5 h-5 text-blue-400"></i>
+      </div>
+    </div>
+    <p class="text-3xl font-bold text-white">{{ loan_stats.active_loans }}</p>
+    <p class="text-xs text-gray-500 mt-1">de {{ loan_stats.total_loans }} totales</p>
+  </div>
+
+  <div class="glass rounded-xl p-5 card-hover {% if loan_stats.overdue_loans > 0 %}border border-red-500/30{% endif %}">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm text-gray-400">Préstamos vencidos</p>
+      <div class="w-9 h-9 bg-red-500/20 rounded-xl flex items-center justify-center">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-red-400"></i>
+      </div>
+    </div>
+    <p class="text-3xl font-bold {% if loan_stats.overdue_loans > 0 %}text-red-400{% else %}text-white{% endif %}">
+      {{ loan_stats.overdue_loans }}
+    </p>
+    <p class="text-xs text-gray-500 mt-1">requieren atención</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+  <!-- Recent loans -->
+  <div class="glass rounded-2xl">
+    <div class="p-5 border-b border-surface-border flex items-center justify-between">
+      <h3 class="font-semibold text-white">Préstamos recientes</h3>
+      <span class="text-xs text-gray-500">Últimos 10</span>
+    </div>
+    <div class="p-4 space-y-3">
+      {% for loan in recent_loans %}
+      <div class="flex items-center gap-3 p-3 bg-surface rounded-xl border border-surface-border">
+        <div class="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center flex-shrink-0">
+          <i data-lucide="book" class="w-5 h-5 text-primary-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-white truncate">{{ loan.book.title }}</p>
+          <p class="text-xs text-gray-400">{{ loan.user.email }} · {{ loan.loan_date|date:"d/m/Y" }}</p>
+        </div>
+        <span class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full
+          {% if loan.status == 'borrowed' %}bg-blue-500/20 text-blue-300
+          {% elif loan.status == 'returned' %}bg-green-500/20 text-green-300
+          {% elif loan.status == 'overdue' %}bg-red-500/20 text-red-300
+          {% else %}bg-gray-500/20 text-gray-300{% endif %}">
+          {{ loan.get_status_display }}
+        </span>
+      </div>
+      {% empty %}
+      <p class="text-center text-gray-500 py-8">No hay préstamos recientes</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Popular books + Overdue -->
+  <div class="space-y-6">
+    <!-- Popular books -->
+    <div class="glass rounded-2xl">
+      <div class="p-5 border-b border-surface-border">
+        <h3 class="font-semibold text-white">📚 Libros más prestados</h3>
+      </div>
+      <div class="p-4 space-y-3">
+        {% for book in popular_books %}
+        <div class="flex items-center gap-3">
+          <span class="w-6 h-6 flex items-center justify-center text-xs font-bold text-gray-500">{{ forloop.counter }}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-white truncate">{{ book.title }}</p>
+            <p class="text-xs text-gray-500">{{ book.author_names }}</p>
+          </div>
+          <span class="text-xs text-primary-400 font-medium">{{ book.loan_count }} préstamos</span>
+        </div>
+        {% empty %}
+        <p class="text-center text-gray-500 py-4">Sin datos</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if overdue_loans %}
+    <!-- Overdue alerts -->
+    <div class="glass rounded-2xl border border-red-500/20">
+      <div class="p-5 border-b border-red-500/20 flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4 text-red-400"></i>
+        <h3 class="font-semibold text-red-300">Préstamos vencidos</h3>
+      </div>
+      <div class="p-4 space-y-2">
+        {% for loan in overdue_loans %}
+        <div class="flex items-center justify-between p-2 bg-red-500/5 rounded-lg">
+          <div>
+            <p class="text-sm text-white">{{ loan.user.email }}</p>
+            <p class="text-xs text-gray-400">{{ loan.book.title|truncatechars:30 }}</p>
+          </div>
+          <span class="text-xs text-red-400">{{ loan.due_date|date:"d/m" }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="glass rounded-2xl p-6">
+  <h3 class="font-semibold text-white mb-4">Acciones rápidas</h3>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <a href="/admin/books/book/add/" class="flex items-center gap-3 p-4 bg-surface rounded-xl border border-surface-border hover:border-primary-500/50 transition-colors">
+      <i data-lucide="plus-circle" class="w-5 h-5 text-primary-400"></i>
+      <span class="text-sm font-medium text-gray-300">Agregar libro</span>
+    </a>
+    <a href="/admin/accounts/user/add/" class="flex items-center gap-3 p-4 bg-surface rounded-xl border border-surface-border hover:border-green-500/50 transition-colors">
+      <i data-lucide="user-plus" class="w-5 h-5 text-green-400"></i>
+      <span class="text-sm font-medium text-gray-300">Nuevo usuario</span>
+    </a>
+    <a href="/api/docs/" target="_blank" class="flex items-center gap-3 p-4 bg-surface rounded-xl border border-surface-border hover:border-blue-500/50 transition-colors">
+      <i data-lucide="code-2" class="w-5 h-5 text-blue-400"></i>
+      <span class="text-sm font-medium text-gray-300">API Docs</span>
+    </a>
+    <a href="/admin/" class="flex items-center gap-3 p-4 bg-surface rounded-xl border border-surface-border hover:border-purple-500/50 transition-colors">
+      <i data-lucide="settings" class="w-5 h-5 text-purple-400"></i>
+      <span class="text-sm font-medium text-gray-300">Admin Panel</span>
+    </a>
+  </div>
+</div>
+{% endblock %}

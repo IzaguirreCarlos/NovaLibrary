@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Catálogo — Lexora Library{% endblock %}
+{% block page_title %}Catálogo de Libros{% endblock %}
+
+{% block content %}
+<!-- Search & Filters -->
+<div class="glass rounded-2xl p-5 mb-6">
+  <form method="get" class="flex flex-wrap gap-4 items-end">
+    <!-- Search -->
+    <div class="flex-1 min-w-60">
+      <label class="block text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Buscar</label>
+      <div class="relative">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+        <input type="text" name="q" value="{{ q }}"
+               class="w-full bg-surface border border-surface-border rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 text-sm"
+               placeholder="Título, autor, ISBN...">
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="min-w-48">
+      <label class="block text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Categoría</label>
+      <select name="category" class="w-full bg-surface border border-surface-border rounded-xl px-4 py-2.5 text-gray-300 focus:outline-none focus:border-primary-500 text-sm">
+        <option value="">Todas</option>
+        {% for cat in categories %}
+        <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Language -->
+    <div class="min-w-40">
+      <label class="block text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Idioma</label>
+      <select name="language" class="w-full bg-surface border border-surface-border rounded-xl px-4 py-2.5 text-gray-300 focus:outline-none focus:border-primary-500 text-sm">
+        <option value="">Todos</option>
+        {% for code, name in languages %}
+        <option value="{{ code }}" {% if selected_language == code %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="bg-primary-600 hover:bg-primary-500 text-white px-6 py-2.5 rounded-xl font-medium transition-all flex items-center gap-2 text-sm">
+      <i data-lucide="filter" class="w-4 h-4"></i> Filtrar
+    </button>
+
+    {% if q or selected_category or selected_language %}
+    <a href="{% url 'books:list' %}" class="text-gray-400 hover:text-white px-4 py-2.5 rounded-xl border border-surface-border text-sm transition-colors">
+      Limpiar
+    </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Results count -->
+<div class="flex items-center justify-between mb-4">
+  <p class="text-gray-400 text-sm">
+    {% if q %}Resultados para "<span class="text-white">{{ q }}</span>" · {% endif %}
+    <span class="text-white font-medium">{{ paginator.count }}</span> libro(s)
+  </p>
+</div>
+
+<!-- Book Grid -->
+{% if books %}
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
+  {% for book in books %}
+  <a href="{% url 'books:detail' book.slug %}" class="group card-hover block">
+    <!-- Cover -->
+    <div class="aspect-[2/3] bg-surface-card rounded-2xl overflow-hidden mb-3 border border-surface-border relative">
+      {% if book.cover_image %}
+      <img src="{{ book.cover_image.url }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="{{ book.title }}">
+      {% else %}
+      <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-900 via-surface-card to-purple-900">
+        <i data-lucide="book" class="w-10 h-10 text-primary-500"></i>
+      </div>
+      {% endif %}
+
+      <!-- Stock badge -->
+      {% if not book.is_available %}
+      <div class="absolute top-2 right-2 bg-red-500/90 text-white text-xs px-2 py-0.5 rounded-full">Sin stock</div>
+      {% elif book.available_stock <= 2 %}
+      <div class="absolute top-2 right-2 bg-yellow-500/90 text-white text-xs px-2 py-0.5 rounded-full">Últimos {{ book.available_stock }}</div>
+      {% endif %}
+
+      {% if book.is_featured %}
+      <div class="absolute top-2 left-2 bg-primary-600/90 text-white text-xs px-2 py-0.5 rounded-full">⭐</div>
+      {% endif %}
+    </div>
+
+    <!-- Info -->
+    <p class="text-sm font-medium text-gray-200 line-clamp-2 group-hover:text-primary-300 transition-colors leading-tight">{{ book.title }}</p>
+    <p class="text-xs text-gray-500 mt-1 truncate">{{ book.author_names }}</p>
+
+    <!-- Rating -->
+    {% if book.average_rating %}
+    <div class="flex items-center gap-1 mt-1.5">
+      <span class="text-yellow-400 text-xs">★</span>
+      <span class="text-xs text-gray-400">{{ book.average_rating }}</span>
+    </div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="flex items-center justify-center gap-2">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-2 glass rounded-lg text-gray-400 hover:text-white text-sm transition-colors">← Anterior</a>
+  {% endif %}
+
+  <span class="px-4 py-2 text-sm text-gray-400">
+    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+  </span>
+
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-2 glass rounded-lg text-gray-400 hover:text-white text-sm transition-colors">Siguiente →</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center py-20">
+  <div class="w-20 h-20 bg-surface-card rounded-2xl flex items-center justify-center mx-auto mb-4">
+    <i data-lucide="search-x" class="w-10 h-10 text-gray-600"></i>
+  </div>
+  <h3 class="text-xl font-semibold text-white mb-2">Sin resultados</h3>
+  <p class="text-gray-400 mb-6">No se encontraron libros con los filtros seleccionados.</p>
+  <a href="{% url 'books:list' %}" class="bg-primary-600 hover:bg-primary-500 text-white px-6 py-2.5 rounded-xl font-medium transition-all">Ver todo el catálogo</a>
+</div>
+{% endif %}
+{% endblock %}

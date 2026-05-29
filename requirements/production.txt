@@ -1,0 +1,10 @@
+-r base.txt
+
+# WSGI server
+gunicorn==22.0.0
+
+# Error tracking
+sentry-sdk[django,celery,redis]==2.12.0
+
+# Production storage (uncomment for S3)
+# boto3==1.34.155

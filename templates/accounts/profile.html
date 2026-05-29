@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Mi Perfil — Lexora Library{% endblock %}
+{% block page_title %}Mi Perfil{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <!-- Profile card -->
+  <div class="glass rounded-2xl p-8 mb-6">
+    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+      <!-- Avatar -->
+      <div class="flex-shrink-0">
+        {% if user.avatar %}
+        <img src="{{ user.avatar.url }}" class="w-24 h-24 rounded-2xl object-cover border-2 border-primary-600" alt="Avatar">
+        {% else %}
+        <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary-600 to-purple-600 flex items-center justify-center text-3xl font-bold text-white">
+          {{ user.first_name|first|upper }}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div class="flex-1 text-center sm:text-left">
+        <div class="flex items-center gap-3 justify-center sm:justify-start mb-2">
+          <h1 class="text-2xl font-bold text-white">{{ user.full_name }}</h1>
+          <span class="px-3 py-1 text-xs font-medium rounded-full
+            {% if user.role == 'admin' %}bg-red-500/20 text-red-300
+            {% elif user.role == 'librarian' %}bg-blue-500/20 text-blue-300
+            {% else %}bg-green-500/20 text-green-300{% endif %}">
+            {{ user.get_role_display }}
+          </span>
+        </div>
+        <p class="text-gray-400 mb-1">{{ user.email }}</p>
+        <p class="text-gray-500 text-sm">Membresía #{{ user.membership_number }} · Desde {{ user.membership_date|date:"M Y" }}</p>
+
+        <!-- Stats -->
+        <div class="flex gap-6 mt-4 justify-center sm:justify-start">
+          <div class="text-center">
+            <p class="text-xl font-bold text-white">{{ active_loans|length }}</p>
+            <p class="text-xs text-gray-500">Activos</p>
+          </div>
+          <div class="text-center">
+            <p class="text-xl font-bold text-white">{{ loan_history|length }}</p>
+            <p class="text-xs text-gray-500">Historial</p>
+          </div>
+          <div class="text-center">
+            <p class="text-xl font-bold text-white">{{ review_count }}</p>
+            <p class="text-xs text-gray-500">Reseñas</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent loan history -->
+  {% if loan_history %}
+  <div class="glass rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-semibold text-white">Historial reciente</h2>
+      <a href="{% url 'loans:my_loans' %}" class="text-sm text-primary-400 hover:text-primary-300">Ver todo →</a>
+    </div>
+    <div class="space-y-3">
+      {% for loan in loan_history %}
+      <div class="flex items-center gap-4 p-3 bg-surface rounded-xl border border-surface-border">
+        <div class="w-10 h-14 bg-surface-border rounded-lg flex-shrink-0 overflow-hidden">
+          {% if loan.book.cover_image %}
+          <img src="{{ loan.book.cover_image.url }}" class="w-full h-full object-cover" alt="">
+          {% else %}
+          <div class="w-full h-full flex items-center justify-center"><i data-lucide="book" class="w-4 h-4 text-gray-500"></i></div>
+          {% endif %}
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-white">{{ loan.book.title }}</p>
+          <p class="text-xs text-gray-500">{{ loan.loan_date|date:"d/m/Y" }} → {{ loan.due_date|date:"d/m/Y" }}</p>
+        </div>
+        <span class="text-xs px-2.5 py-1 rounded-full
+          {% if loan.status == 'borrowed' %}bg-blue-500/20 text-blue-300
+          {% elif loan.status == 'returned' %}bg-green-500/20 text-green-300
+          {% elif loan.status == 'overdue' %}bg-red-500/20 text-red-300
+          {% else %}bg-gray-500/20 text-gray-300{% endif %}">
+          {{ loan.get_status_display }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,137 @@
+version: "3.9"
+
+x-app-env: &app-env
+  DJANGO_SETTINGS_MODULE: config.settings.development
+  DATABASE_URL: postgresql://lexora:lexora@postgres:5432/lexora_db
+  REDIS_URL: redis://redis:6379/0
+  DEBUG: "true"
+  SECRET_KEY: django-dev-secret-key-change-in-production
+  ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0"
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: lexora_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lexora_db
+      POSTGRES_USER: lexora
+      POSTGRES_PASSWORD: lexora
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lexora -d lexora_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: lexora_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Django Web ────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      target: development
+    container_name: lexora_web
+    restart: unless-stopped
+    working_dir: /app
+    command: >
+      sh -c "python manage.py migrate --settings=config.settings.development &&
+             python manage.py collectstatic --noinput --settings=config.settings.development &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      <<: *app-env
+    volumes:
+      - .:/app
+      - media_files:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Celery Worker ────────────────────────────────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      target: development
+    container_name: lexora_celery_worker
+    restart: unless-stopped
+    working_dir: /app
+    command: celery -A config.celery worker -l info -c 4 -Q default,emails,notifications
+    environment:
+      <<: *app-env
+    volumes:
+      - .:/app
+      - media_files:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Celery Beat (scheduler) ───────────────────────────────────────────────
+  celery_beat:
+    build:
+      context: .
+      target: development
+    container_name: lexora_celery_beat
+    restart: unless-stopped
+    working_dir: /app
+    command: celery -A config.celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      <<: *app-env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Celery Flower (monitoring) ───────────────────────────────────────────
+  flower:
+    build:
+      context: .
+      target: development
+    container_name: lexora_flower
+    restart: unless-stopped
+    working_dir: /app
+    command: celery -A config.celery flower --port=5555
+    environment:
+      <<: *app-env
+    volumes:
+      - .:/app
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery_worker
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_files:
+
+networks:
+  default:
+    name: lexora_network

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }} — Lexora Library{% endblock %}
+{% block page_title %}Detalle del libro{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <!-- Breadcrumb -->
+  <nav class="text-sm text-gray-500 mb-6">
+    <a href="{% url 'books:list' %}" class="hover:text-gray-300 transition-colors">Catálogo</a>
+    <span class="mx-2">›</span>
+    <span class="text-gray-300">{{ book.title|truncatechars:50 }}</span>
+  </nav>
+
+  <div class="glass rounded-2xl p-6 md:p-8 mb-6">
+    <div class="flex flex-col md:flex-row gap-8">
+      <!-- Cover -->
+      <div class="flex-shrink-0">
+        <div class="w-48 md:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl shadow-black/50 mx-auto md:mx-0 border border-surface-border">
+          {% if book.cover_image %}
+          <img src="{{ book.cover_image.url }}" class="w-full h-full object-cover" alt="{{ book.title }}">
+          {% else %}
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-900 to-purple-900">
+            <i data-lucide="book" class="w-16 h-16 text-primary-400"></i>
+          </div>
+          {% endif %}
+        </div>
+        <!-- Action buttons below cover -->
+        <div class="mt-4 space-y-2 w-48 md:w-56 mx-auto md:mx-0">
+          {% if not user_has_loan %}
+            {% if book.is_available %}
+            <form method="post" action="{% url 'loans:borrow' book.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="w-full bg-primary-600 hover:bg-primary-500 text-white py-3 rounded-xl font-semibold transition-all shadow-lg shadow-primary-600/30 flex items-center justify-center gap-2">
+                <i data-lucide="book-marked" class="w-4 h-4"></i> Solicitar préstamo
+              </button>
+            </form>
+            {% else %}
+            <button disabled class="w-full bg-gray-700 text-gray-400 py-3 rounded-xl font-semibold cursor-not-allowed flex items-center justify-center gap-2">
+              <i data-lucide="x-circle" class="w-4 h-4"></i> Sin stock disponible
+            </button>
+            {% endif %}
+          {% else %}
+          <div class="w-full bg-green-500/20 border border-green-500/30 text-green-300 py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> Ya lo tienes prestado
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div class="flex-1">
+        <!-- Categories -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          {% for cat in book.categories.all %}
+          <span class="px-3 py-1 rounded-full text-xs font-medium" style="background:{{ cat.color }}25; color:{{ cat.color }}; border: 1px solid {{ cat.color }}40">
+            {{ cat.name }}
+          </span>
+          {% endfor %}
+        </div>
+
+        <h1 class="text-3xl font-bold text-white mb-2">{{ book.title }}</h1>
+        {% if book.subtitle %}<p class="text-lg text-gray-400 mb-3">{{ book.subtitle }}</p>{% endif %}
+
+        <!-- Authors -->
+        <div class="flex flex-wrap gap-3 mb-4">
+          {% for author in book.authors.all %}
+          <a href="{% url 'books:author_detail' author.slug %}" class="flex items-center gap-2 hover:text-primary-300 text-gray-300 transition-colors">
+            {% if author.profile_image %}
+            <img src="{{ author.profile_image.url }}" class="w-6 h-6 rounded-full object-cover" alt="">
+            {% else %}
+            <div class="w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center text-xs text-white">{{ author.full_name|first }}</div>
+            {% endif %}
+            <span class="text-sm font-medium">{{ author.full_name }}</span>
+          </a>
+          {% endfor %}
+        </div>
+
+        <!-- Rating -->
+        <div class="flex items-center gap-3 mb-6">
+          <div class="flex">
+            {% for i in "12345" %}
+            <span class="text-xl {% if forloop.counter <= book.average_rating %}text-yellow-400{% else %}text-gray-600{% endif %}">★</span>
+            {% endfor %}
+          </div>
+          <span class="text-yellow-400 font-semibold">{{ book.average_rating }}</span>
+          <span class="text-gray-500 text-sm">({{ book.review_count }} reseña{{ book.review_count|pluralize:"s" }})</span>
+        </div>
+
+        <!-- Metadata grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 text-sm">
+          <div class="bg-surface rounded-xl p-3 border border-surface-border">
+            <p class="text-gray-500 mb-1">ISBN</p>
+            <p class="text-white font-mono">{{ book.isbn }}</p>
+          </div>
+          <div class="bg-surface rounded-xl p-3 border border-surface-border">
+            <p class="text-gray-500 mb-1">Idioma</p>
+            <p class="text-white">{{ book.get_language_display }}</p>
+          </div>
+          <div class="bg-surface rounded-xl p-3 border border-surface-border">
+            <p class="text-gray-500 mb-1">Páginas</p>
+            <p class="text-white">{{ book.pages|default:"—" }}</p>
+          </div>
+          {% if book.publisher %}
+          <div class="bg-surface rounded-xl p-3 border border-surface-border">
+            <p class="text-gray-500 mb-1">Editorial</p>
+            <p class="text-white">{{ book.publisher.name }}</p>
+          </div>
+          {% endif %}
+          {% if book.publication_date %}
+          <div class="bg-surface rounded-xl p-3 border border-surface-border">
+            <p class="text-gray-500 mb-1">Publicación</p>
+            <p class="text-white">{{ book.publication_date|date:"Y" }}</p>
+          </div>
+          {% endif %}
+          <div class="bg-surface rounded-xl p-3 border border-surface-border">
+            <p class="text-gray-500 mb-1">Disponibilidad</p>
+            <p class="{% if book.is_available %}text-green-400{% else %}text-red-400{% endif %} font-medium">
+              {{ book.available_stock }}/{{ book.stock }} copias
+            </p>
+          </div>
+        </div>
+
+        <!-- Description -->
+        {% if book.description %}
+        <div>
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Descripción</h3>
+          <p class="text-gray-300 leading-relaxed">{{ book.description }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Reviews section -->
+  <div class="glass rounded-2xl p-6 mb-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-lg font-semibold text-white">Reseñas</h2>
+      {% if not user_review and user.is_authenticated %}
+      <button onclick="document.getElementById('review-form').classList.toggle('hidden')"
+              class="text-sm text-primary-400 hover:text-primary-300 transition-colors flex items-center gap-1">
+        <i data-lucide="plus" class="w-4 h-4"></i> Escribir reseña
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Review form -->
+    {% if not user_review %}
+    <div id="review-form" class="hidden mb-6 p-5 bg-surface rounded-xl border border-surface-border animate-slide-up">
+      <form method="post" action="{% url 'reviews:create' book.pk %}" class="space-y-4">
+        {% csrf_token %}
+
+        <div>
+          <label class="block text-sm text-gray-400 mb-2">Calificación</label>
+          <div class="flex gap-2" x-data="{ rating: 0 }">
+            {% for i in "12345" %}
+            <button type="button" @click="rating = {{ forloop.counter }}"
+                    class="text-2xl transition-colors"
+                    :class="rating >= {{ forloop.counter }} ? 'text-yellow-400' : 'text-gray-600'">★</button>
+            <input type="hidden" name="rating" :value="rating">
+            {% endfor %}
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-400 mb-2">Comentario</label>
+          <textarea name="comment" rows="3" class="w-full bg-surface-card border border-surface-border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 resize-none text-sm" placeholder="Comparte tu opinión sobre este libro..."></textarea>
+        </div>
+
+        <button type="submit" class="bg-primary-600 hover:bg-primary-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all">
+          Publicar reseña
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- Reviews list -->
+    {% if reviews %}
+    <div class="space-y-4">
+      {% for review in reviews %}
+      <div class="p-4 bg-surface rounded-xl border border-surface-border">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3">
+            {% if review.user.avatar %}
+            <img src="{{ review.user.avatar.url }}" class="w-9 h-9 rounded-full object-cover" alt="">
+            {% else %}
+            <div class="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-sm font-semibold text-white">{{ review.user.first_name|first }}</div>
+            {% endif %}
+            <div>
+              <p class="text-sm font-medium text-white">{{ review.user.full_name }}</p>
+              <p class="text-xs text-gray-500">{{ review.created_at|date:"d M Y" }}</p>
+            </div>
+          </div>
+          <div class="flex text-yellow-400">
+            {% for i in "12345" %}
+            <span class="{% if forloop.counter > review.rating %}text-gray-600{% endif %}">★</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% if review.title %}<p class="text-sm font-semibold text-white mb-1">{{ review.title }}</p>{% endif %}
+        <p class="text-sm text-gray-300 leading-relaxed">{{ review.comment }}</p>
+        {% if review.user == user or user.is_librarian %}
+        <div class="mt-3 flex gap-2">
+          <form method="post" action="{% url 'reviews:delete' review.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="text-xs text-red-400 hover:text-red-300 transition-colors">Eliminar</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-8">
+      <p class="text-gray-500">Aún no hay reseñas para este libro. ¡Sé el primero en opinar!</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Related books -->
+  {% if related_books %}
+  <div class="glass rounded-2xl p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Libros relacionados</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+      {% for rb in related_books %}
+      <a href="{% url 'books:detail' rb.slug %}" class="group card-hover">
+        <div class="aspect-[2/3] bg-surface-card rounded-xl overflow-hidden mb-2 border border-surface-border">
+          {% if rb.cover_image %}
+          <img src="{{ rb.cover_image.url }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="">
+          {% else %}
+          <div class="w-full h-full flex items-center justify-center"><i data-lucide="book" class="w-6 h-6 text-gray-600"></i></div>
+          {% endif %}
+        </div>
+        <p class="text-xs text-gray-400 line-clamp-2 group-hover:text-primary-300 transition-colors">{{ rb.title }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

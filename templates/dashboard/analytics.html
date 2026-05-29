@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Analíticas — Lexora Library{% endblock %}
+{% block page_title %}Analíticas{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex items-center justify-between mb-8">
+  <div>
+    <h2 class="text-xl font-bold text-white">Reporte de actividad</h2>
+    <p class="text-sm text-gray-400 mt-1">Últimos 30 días</p>
+  </div>
+  <a href="{% url 'dashboard:home' %}" class="text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1 transition-colors">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver al dashboard
+  </a>
+</div>
+
+<!-- Charts grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+  <!-- Loans over time -->
+  <div class="glass rounded-2xl p-6">
+    <h3 class="font-semibold text-white mb-1">Préstamos por día</h3>
+    <p class="text-xs text-gray-500 mb-4">Últimos 30 días</p>
+    <div class="relative h-56">
+      <canvas id="loansChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Books by category -->
+  <div class="glass rounded-2xl p-6">
+    <h3 class="font-semibold text-white mb-1">Distribución por categoría</h3>
+    <p class="text-xs text-gray-500 mb-4">Top 10 categorías por número de libros</p>
+    <div class="relative h-56">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Raw data tables -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- Loans by day table -->
+  <div class="glass rounded-2xl">
+    <div class="p-5 border-b border-surface-border">
+      <h3 class="font-semibold text-white">Detalle de préstamos</h3>
+    </div>
+    <div class="overflow-auto max-h-72">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-surface-border">
+            <th class="text-left px-5 py-3 text-gray-400 font-medium">Fecha</th>
+            <th class="text-right px-5 py-3 text-gray-400 font-medium">Préstamos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in loans_chart_data %}
+          <tr class="border-b border-surface-border/50 hover:bg-surface-border/20 transition-colors">
+            <td class="px-5 py-3 text-gray-300">{{ entry.day|date:"d M Y" }}</td>
+            <td class="px-5 py-3 text-right text-white font-medium">{{ entry.count }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="2" class="px-5 py-8 text-center text-gray-500">Sin actividad en los últimos 30 días</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Categories table -->
+  <div class="glass rounded-2xl">
+    <div class="p-5 border-b border-surface-border">
+      <h3 class="font-semibold text-white">Libros por categoría</h3>
+    </div>
+    <div class="overflow-auto max-h-72">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-surface-border">
+            <th class="text-left px-5 py-3 text-gray-400 font-medium">Categoría</th>
+            <th class="text-right px-5 py-3 text-gray-400 font-medium">Libros</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in category_chart_data %}
+          <tr class="border-b border-surface-border/50 hover:bg-surface-border/20 transition-colors">
+            <td class="px-5 py-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background: {{ entry.color }}"></span>
+                <span class="text-gray-300">{{ entry.name }}</span>
+              </div>
+            </td>
+            <td class="px-5 py-3 text-right text-white font-medium">{{ entry.book_count }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="2" class="px-5 py-8 text-center text-gray-500">Sin categorías con libros</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const loansData = {{ loans_chart_data|safe }};
+const categoryData = {{ category_chart_data|safe }};
+
+const chartDefaults = {
+  color: 'rgba(255,255,255,0.7)',
+  borderColor: 'rgba(255,255,255,0.1)',
+};
+
+// Loans over time — line chart
+const loansCtx = document.getElementById('loansChart').getContext('2d');
+new Chart(loansCtx, {
+  type: 'line',
+  data: {
+    labels: loansData.map(d => {
+      const date = new Date(d.day);
+      return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+    }),
+    datasets: [{
+      label: 'Préstamos',
+      data: loansData.map(d => d.count),
+      borderColor: '#6366f1',
+      backgroundColor: 'rgba(99,102,241,0.15)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: '#6366f1',
+      pointRadius: 3,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#6b7280', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: '#6b7280', font: { size: 11 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
+    },
+  }
+});
+
+// Category distribution — doughnut chart
+const catCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(catCtx, {
+  type: 'doughnut',
+  data: {
+    labels: categoryData.map(d => d.name),
+    datasets: [{
+      data: categoryData.map(d => d.book_count),
+      backgroundColor: categoryData.map(d => d.color + 'cc'),
+      borderColor: categoryData.map(d => d.color),
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { color: '#9ca3af', font: { size: 11 }, boxWidth: 12, padding: 10 }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

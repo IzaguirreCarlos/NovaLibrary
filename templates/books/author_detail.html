@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ author.full_name }} — Lexora Library{% endblock %}
+{% block page_title %}Autor{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <!-- Breadcrumb -->
+  <nav class="text-sm text-gray-500 mb-6">
+    <a href="{% url 'books:list' %}" class="hover:text-gray-300 transition-colors">Catálogo</a>
+    <span class="mx-2">›</span>
+    <span class="text-gray-300">{{ author.full_name }}</span>
+  </nav>
+
+  <!-- Author header -->
+  <div class="glass rounded-2xl p-6 md:p-8 mb-6">
+    <div class="flex flex-col sm:flex-row gap-6 items-start">
+      <!-- Avatar -->
+      <div class="flex-shrink-0">
+        <div class="w-28 h-28 rounded-2xl overflow-hidden border border-surface-border shadow-xl mx-auto sm:mx-0">
+          {% if author.profile_image %}
+          <img src="{{ author.profile_image.url }}" class="w-full h-full object-cover" alt="{{ author.full_name }}">
+          {% else %}
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-800 to-purple-900 text-4xl font-bold text-primary-300">
+            {{ author.full_name|first|upper }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div class="flex-1">
+        <h1 class="text-3xl font-bold text-white mb-2">{{ author.full_name }}</h1>
+
+        <div class="flex flex-wrap gap-4 mb-4 text-sm text-gray-400">
+          {% if author.nationality %}
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+            {{ author.nationality }}
+          </span>
+          {% endif %}
+          {% if author.birth_date %}
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+            {{ author.birth_date|date:"Y" }}
+            {% if author.death_date %} – {{ author.death_date|date:"Y" }}{% endif %}
+          </span>
+          {% endif %}
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="book-copy" class="w-4 h-4"></i>
+            {{ books|length }} libro{{ books|length|pluralize:"s" }}
+          </span>
+        </div>
+
+        {% if author.biography %}
+        <p class="text-gray-300 leading-relaxed">{{ author.biography }}</p>
+        {% endif %}
+
+        {% if author.website %}
+        <a href="{{ author.website }}" target="_blank" rel="noopener"
+           class="inline-flex items-center gap-2 mt-4 text-primary-400 hover:text-primary-300 text-sm transition-colors">
+          <i data-lucide="external-link" class="w-4 h-4"></i> Sitio web
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Books by this author -->
+  <div class="glass rounded-2xl p-6">
+    <h2 class="text-lg font-semibold text-white mb-5">
+      Obras de {{ author.full_name }}
+    </h2>
+
+    {% if books %}
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      {% for book in books %}
+      <a href="{% url 'books:detail' book.slug %}" class="group card-hover block">
+        <div class="aspect-[2/3] bg-surface-card rounded-2xl overflow-hidden mb-3 border border-surface-border relative">
+          {% if book.cover_image %}
+          <img src="{{ book.cover_image.url }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="{{ book.title }}">
+          {% else %}
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-900 via-surface-card to-purple-900">
+            <i data-lucide="book" class="w-10 h-10 text-primary-500"></i>
+          </div>
+          {% endif %}
+
+          {% if not book.is_available %}
+          <div class="absolute top-2 right-2 bg-red-500/90 text-white text-xs px-2 py-0.5 rounded-full">Sin stock</div>
+          {% endif %}
+        </div>
+
+        <p class="text-sm font-medium text-gray-200 line-clamp-2 group-hover:text-primary-300 transition-colors leading-tight">{{ book.title }}</p>
+
+        {% if book.avg_rating %}
+        <div class="flex items-center gap-1 mt-1.5">
+          <span class="text-yellow-400 text-xs">★</span>
+          <span class="text-xs text-gray-400">{{ book.avg_rating|floatformat:1 }}</span>
+        </div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+      <div class="w-16 h-16 bg-surface-card rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="book-x" class="w-8 h-8 text-gray-600"></i>
+      </div>
+      <p class="text-gray-400">No hay libros disponibles de este autor.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
